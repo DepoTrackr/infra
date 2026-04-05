@@ -1,0 +1,23 @@
+_format_version: "3.0"
+
+services:
+  - name: auth-service
+    url: http://mock-auth:80
+    routes:
+      - name: auth-routes
+        paths:
+          - /auth
+
+  - name: catalog-service
+    url: http://mock-catalog:80
+    routes:
+      - name: catalog-routes
+        paths:
+          - /catalog
+
+  - name: order-service
+    url: http://mock-order:80
+    routes:
+      - name: order-routes
+        paths:
+          - /orders

@@ -1,0 +1,86 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    env_file:
+      - ../.env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - data-net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    networks:
+      - data-net
+    deploy:
+      replicas: 1
+
+  kong:
+    image: kong:3.7
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    ports:
+      - "8000:8000"
+      - "8001:8001"
+    volumes:
+      - ../kong/kong.yml:/kong/declarative/kong.yml:ro
+    networks:
+      - public-net
+      - internal-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+
+  loki:
+    image: grafana/loki:3.0.0
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+      - ../monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+    networks:
+      - observability-net
+    deploy:
+      replicas: 1
+
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - ../monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/log:/var/log:ro
+    networks:
+      - observability-net
+    deploy:
+      mode: global
+
+networks:
+  public-net:
+    driver: overlay
+  internal-net:
+    driver: overlay
+  data-net:
+    driver: overlay
+  observability-net:
+    driver: overlay
+
+volumes:
+  postgres_data:
