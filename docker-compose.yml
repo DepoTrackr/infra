@@ -55,12 +55,20 @@ services:
     volumes:
       - ./kong/kong.yml:/kong/declarative/kong.yml:ro
     depends_on:
-      - mock-auth
-      - mock-catalog
-      - mock-order
+      mock-auth:
+        condition: service_started
+      mock-catalog:
+        condition: service_started
+      mock-order:
+        condition: service_started
     networks:
       - public-net
       - internal-net
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   mock-auth:
     image: nginxdemos/hello:plain-text
@@ -87,11 +95,11 @@ services:
     image: grafana/loki:3.0.0
     container_name: supplier-portal-loki
     restart: unless-stopped
-    command: -config.file=/etc/loki/local-config.yaml
+    command: -config.file=/mnt/config/loki-config.yml
     ports:
       - "${LOKI_PORT}:3100"
     volumes:
-      - ./dashboard/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - ./dashboard:/mnt/config:ro
     networks:
       - observability-net
 
@@ -108,6 +116,8 @@ services:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
     networks:
       - observability-net
+    volumes:
+      - grafana_data:/var/lib/grafana
 
 networks:
   public-net:
@@ -117,3 +127,4 @@ networks:
 
 volumes:
   postgres_data:
+  grafana_data:
