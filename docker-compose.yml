@@ -119,6 +119,18 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
 
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: supplier-portal-portainer
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - public-net
+
 networks:
   public-net:
   internal-net:
@@ -128,3 +140,4 @@ networks:
 volumes:
   postgres_data:
   grafana_data:
+  portainer_data:
