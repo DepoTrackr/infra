@@ -3,12 +3,10 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16
-    env_file:
-      - ../.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: supplier_portal
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -32,16 +30,11 @@ services:
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
-      KONG_PROXY_ACCESS_LOG: /dev/stdout
-      KONG_ADMIN_ACCESS_LOG: /dev/stdout
-      KONG_PROXY_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_ERROR_LOG: /dev/stderr
-      KONG_ADMIN_LISTEN: 0.0.0.0:8001
     ports:
       - "8000:8000"
       - "8001:8001"
     volumes:
-      - ../kong/kong.yml:/kong/declarative/kong.yml:ro
+      - ./kong/kong.yml:/kong/declarative/kong.yml:ro
     networks:
       - public-net
       - internal-net
@@ -51,26 +44,26 @@ services:
         constraints:
           - node.role == manager
 
-  loki:
-    image: grafana/loki:3.0.0
-    command: -config.file=/etc/loki/local-config.yaml
-    volumes:
-      - ../monitoring/loki-config.yml:/etc/loki/local-config.yaml:ro
+  mock-auth:
+    image: nginxdemos/hello:plain-text
     networks:
-      - observability-net
+      - internal-net
     deploy:
-      replicas: 1
+      replicas: 2
 
-  promtail:
-    image: grafana/promtail:3.0.0
-    command: -config.file=/etc/promtail/config.yml
-    volumes:
-      - ../monitoring/promtail-config.yml:/etc/promtail/config.yml:ro
-      - /var/log:/var/log:ro
+  mock-catalog:
+    image: nginxdemos/hello:plain-text
     networks:
-      - observability-net
+      - internal-net
     deploy:
-      mode: global
+      replicas: 2
+
+  mock-order:
+    image: nginxdemos/hello:plain-text
+    networks:
+      - internal-net
+    deploy:
+      replicas: 2
 
 networks:
   public-net:
@@ -78,8 +71,6 @@ networks:
   internal-net:
     driver: overlay
   data-net:
-    driver: overlay
-  observability-net:
     driver: overlay
 
 volumes:
