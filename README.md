@@ -14,5 +14,5 @@ Repository for Infrastructure. **Supplier Portal**.
 - `docker-compose.yml`
 - `swarm/stack.yml`
 - `kong/`
-- `monitoring/`
+- `dashboard/`
 - `scripts/`
