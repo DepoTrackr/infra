@@ -2,22 +2,25 @@ _format_version: "3.0"
 
 services:
   - name: auth-service
-    url: http://mock-auth:80
+    url: http://auth-service:3001
     routes:
       - name: auth-routes
         paths:
           - /auth
+        strip_path: true
 
   - name: catalog-service
-    url: http://mock-catalog:80
+    url: http://catalog-service:3002
     routes:
       - name: catalog-routes
         paths:
           - /catalog
+        strip_path: true
 
   - name: order-service
-    url: http://mock-order:80
+    url: http://order-service:3003
     routes:
       - name: order-routes
         paths:
           - /orders
+        strip_path: true

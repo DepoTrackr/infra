@@ -55,11 +55,11 @@ services:
     volumes:
       - ./kong/kong.yml:/kong/declarative/kong.yml:ro
     depends_on:
-      mock-auth:
+      auth-service:
         condition: service_started
-      mock-catalog:
+      catalog-service:
         condition: service_started
-      mock-order:
+      order-service:
         condition: service_started
     networks:
       - public-net
@@ -70,26 +70,51 @@ services:
       timeout: 5s
       retries: 5
 
-  mock-auth:
-    image: nginxdemos/hello:plain-text
-    container_name: supplier-portal-mock-auth
+  auth-service:
+    build:
+      context: ../auth-service
+    container_name: depotrackr-auth-service
     restart: unless-stopped
+    environment:
+      PORT: 3001
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - internal-net
+      - data-net
 
-  mock-catalog:
-    image: nginxdemos/hello:plain-text
-    container_name: supplier-portal-mock-catalog
+  catalog-service:
+    build:
+      context: ../catalog-service
+    container_name: depotrackr-catalog-service
     restart: unless-stopped
+    environment:
+      PORT: 3002
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - internal-net
+      - data-net
 
-  mock-order:
-    image: nginxdemos/hello:plain-text
-    container_name: supplier-portal-mock-order
+  order-service:
+    build:
+      context: ../order-service
+    container_name: depotrackr-order-service
     restart: unless-stopped
+    environment:
+      PORT: 3003
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - internal-net
+      - data-net
 
   loki:
     image: grafana/loki:3.0.0
