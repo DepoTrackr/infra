@@ -1,0 +1,62 @@
+{
+  "id": null,
+  "uid": "depotrackr-stage3",
+  "title": "DepoTrackr Stage3 Observability",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Request Rate (all services)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum(rate(auth_http_requests_total[1m]))", "legendFormat": "auth", "refId": "A" },
+        { "expr": "sum(rate(catalog_http_requests_total[1m]))", "legendFormat": "catalog", "refId": "B" },
+        { "expr": "sum(rate(order_http_requests_total[1m]))", "legendFormat": "order", "refId": "C" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "4xx/5xx Error Rate",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        {
+          "expr": "sum(rate(auth_http_requests_total{status=~\"4..|5..\"}[1m]))",
+          "legendFormat": "auth errors",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(catalog_http_requests_total{status=~\"4..|5..\"}[1m]))",
+          "legendFormat": "catalog errors",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(order_http_requests_total{status=~\"4..|5..\"}[1m]))",
+          "legendFormat": "order errors",
+          "refId": "C"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "Auth total requests (15m)",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 8 },
+      "targets": [{ "expr": "sum(increase(auth_http_requests_total[15m]))", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Catalog total requests (15m)",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 8 },
+      "targets": [{ "expr": "sum(increase(catalog_http_requests_total[15m]))", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Order total requests (15m)",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 8 },
+      "targets": [{ "expr": "sum(increase(order_http_requests_total[15m]))", "refId": "A" }]
+    }
+  ],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "timezone": "browser"
+}
