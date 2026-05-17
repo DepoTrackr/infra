@@ -177,9 +177,11 @@ services:
     container_name: depotrackr-promtail
     restart: unless-stopped
     command: -config.file=/mnt/config/promtail-config.yml
+    ports:
+      - "9080:9080"
     volumes:
       - ./dashboard:/mnt/config:ro
-      - /var/log:/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki
     networks:
