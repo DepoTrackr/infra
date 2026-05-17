@@ -1,7 +1,11 @@
 apiVersion: 1
+
 providers:
-  - name: DepoTrackrDashboards
+  - name: DepoTrackr
+    orgId: 1
+    folder: DepoTrackr
     type: file
-    updateIntervalSeconds: 30
+    disableDeletion: false
+    editable: true
     options:
-      path: /etc/grafana/provisioning/dashboards/json
+      path: /var/lib/grafana/provisioning/dashboards

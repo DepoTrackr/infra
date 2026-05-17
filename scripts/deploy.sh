@@ -2,7 +2,7 @@
 
 set -e
 
-STACK_NAME="supplier-portal"
+STACK_NAME="depotrackr"
 
 echo "Deploying stack: ${STACK_NAME}"
 docker stack deploy -c swarm/stack.yml ${STACK_NAME}

@@ -4,9 +4,11 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: supplier_portal
+      POSTGRES_DB: depotrackr
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets:
+      - postgres_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -15,6 +17,8 @@ services:
       placement:
         constraints:
           - node.role == manager
+      restart_policy:
+        condition: on-failure
 
   adminer:
     image: adminer:latest
@@ -24,54 +28,250 @@ services:
       - data-net
     deploy:
       replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
 
   kong:
     image: kong:3.7
     environment:
       KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001
+    configs:
+      - source: kong_config
+        target: /kong/declarative/kong.yml
     ports:
       - "8000:8000"
       - "8001:8001"
-    volumes:
-      - ./kong/kong.yml:/kong/declarative/kong.yml:ro
     networks:
       - public-net
       - internal-net
+    deploy:
+      replicas: 2
+      placement:
+        preferences:
+          - spread: node.id
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  auth-service:
+    image: depotrackr/auth-service:latest
+    environment:
+      PORT: 3001
+    secrets:
+      - database_url
+      - jwt_secret
+    command: >
+      sh -c 'export DATABASE_URL="$$(cat /run/secrets/database_url)"
+      JWT_SECRET="$$(cat /run/secrets/jwt_secret)"
+      && npm start'
+    networks:
+      - internal-net
+      - data-net
+    deploy:
+      replicas: 2
+      placement:
+        preferences:
+          - spread: node.id
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  catalog-service:
+    image: depotrackr/catalog-service:latest
+    environment:
+      PORT: 3002
+    secrets:
+      - database_url
+    command: >
+      sh -c 'export DATABASE_URL="$$(cat /run/secrets/database_url)"
+      && npm start'
+    networks:
+      - internal-net
+      - data-net
+    deploy:
+      replicas: 2
+      placement:
+        preferences:
+          - spread: node.id
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  order-service:
+    image: depotrackr/order-service:latest
+    environment:
+      PORT: 3003
+    secrets:
+      - database_url
+    command: >
+      sh -c 'export DATABASE_URL="$$(cat /run/secrets/database_url)"
+      && npm start'
+    networks:
+      - internal-net
+      - data-net
+    deploy:
+      replicas: 2
+      placement:
+        preferences:
+          - spread: node.id
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+      restart_policy:
+        condition: on-failure
+
+  loki:
+    image: grafana/loki:3.0.0
+    command: -config.file=/mnt/config/loki-config.yml
+    configs:
+      - source: loki_config
+        target: /mnt/config/loki-config.yml
+    ports:
+      - "3100:3100"
+    networks:
+      - observability-net
     deploy:
       replicas: 1
       placement:
         constraints:
           - node.role == manager
+      restart_policy:
+        condition: on-failure
 
-  mock-auth:
-    image: nginxdemos/hello:plain-text
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus_data:/prometheus
     networks:
       - internal-net
+      - observability-net
     deploy:
-      replicas: 2
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
 
-  mock-catalog:
-    image: nginxdemos/hello:plain-text
+  grafana:
+    image: grafana/grafana:10.4.5
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
     networks:
-      - internal-net
+      - observability-net
     deploy:
-      replicas: 2
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
 
-  mock-order:
-    image: nginxdemos/hello:plain-text
+  promtail:
+    image: grafana/promtail:3.0.0
+    command: -config.file=/mnt/config/promtail-config.yml
+    configs:
+      - source: promtail_config
+        target: /mnt/config/promtail-config.yml
+    volumes:
+      - /var/log:/var/log:ro
     networks:
-      - internal-net
+      - observability-net
     deploy:
-      replicas: 2
+      mode: global
+      restart_policy:
+        condition: on-failure
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - public-net
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      restart_policy:
+        condition: on-failure
 
 networks:
   public-net:
     driver: overlay
+    attachable: true
+
   internal-net:
     driver: overlay
+    attachable: true
+
   data-net:
     driver: overlay
+    attachable: true
+
+  observability-net:
+    driver: overlay
+    attachable: true
 
 volumes:
   postgres_data:
+  grafana_data:
+  prometheus_data:
+  portainer_data:
+
+secrets:
+  postgres_password:
+    external: true
+
+  database_url:
+    external: true
+
+  jwt_secret:
+    external: true
+
+configs:
+  kong_config:
+    file: ../kong/kong.yml
+
+  loki_config:
+    file: ../dashboard/loki-config.yml
+
+  prometheus_config:
+    file: ../dashboard/prometheus.yml
+
+  promtail_config:
+    file: ../dashboard/promtail-config.yml

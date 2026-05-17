@@ -3,7 +3,7 @@ version: "3.9"
 services:
   postgres:
     image: postgres:16
-    container_name: supplier-portal-postgres
+    container_name: depotrackr-postgres
     restart: unless-stopped
     env_file:
       - .env
@@ -25,7 +25,7 @@ services:
 
   adminer:
     image: adminer:latest
-    container_name: supplier-portal-adminer
+    container_name: depotrackr-adminer
     restart: unless-stopped
     depends_on:
       postgres:
@@ -37,7 +37,7 @@ services:
 
   kong:
     image: kong:3.7
-    container_name: supplier-portal-kong
+    container_name: depotrackr-kong
     restart: unless-stopped
     env_file:
       - .env
@@ -118,7 +118,7 @@ services:
 
   loki:
     image: grafana/loki:3.0.0
-    container_name: supplier-portal-loki
+    container_name: depotrackr-loki
     restart: unless-stopped
     command: -config.file=/mnt/config/loki-config.yml
     ports:
@@ -130,7 +130,7 @@ services:
 
   grafana:
     image: grafana/grafana:10.4.5
-    container_name: supplier-portal-grafana
+    container_name: depotrackr-grafana
     restart: unless-stopped
     ports:
       - "${GRAFANA_PORT}:3000"
@@ -143,10 +143,11 @@ services:
       - observability-net
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./dashboard/grafana/provisioning:/etc/grafana/provisioning:ro
 
   portainer:
     image: portainer/portainer-ce:latest
-    container_name: supplier-portal-portainer
+    container_name: depotrackr-portainer
     restart: unless-stopped
     ports:
       - "9000:9000"
@@ -155,7 +156,34 @@ services:
       - portainer_data:/data
     networks:
       - public-net
-
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: depotrackr-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./dashboard/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - internal-net
+      - observability-net
+    depends_on:
+      - auth-service
+      - catalog-service
+      - order-service
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: depotrackr-promtail
+    restart: unless-stopped
+    command: -config.file=/mnt/config/promtail-config.yml
+    volumes:
+      - ./dashboard:/mnt/config:ro
+      - /var/log:/var/log:ro
+    depends_on:
+      - loki
+    networks:
+      - observability-net
 networks:
   public-net:
   internal-net:
@@ -166,3 +194,4 @@ volumes:
   postgres_data:
   grafana_data:
   portainer_data:
+  prometheus_data:
